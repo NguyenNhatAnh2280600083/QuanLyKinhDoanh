@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+python-dotenv
+python-jose[cryptography]
+bcrypt==3.2.0
+passlib[bcrypt]
+python-multipart
+pydantic[email]
+alembic
+pandas
+openpyxl
+reportlab
+python-magic-bin; platform_system == 'Windows'
+python-magic; platform_system != 'Windows'
