@@ -15,7 +15,7 @@ from ..utils.notifications import check_low_stock_and_notify
 from .auth import get_current_user
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/inventory", tags=["Inventory"], dependencies=[require_permission("INVENTORY_VIEW")])
+router = APIRouter(prefix="/inventory", tags=["Inventory"], dependencies=[Depends(require_permission("INVENTORY_VIEW"))])
 
 @router.get("/", response_model=InventoryResponse)
 async def get_inventory(
@@ -52,7 +52,7 @@ async def get_low_stock(
     products = db.query(Product).filter(Product.stock_quantity <= Product.low_stock_threshold).all()
     return products
 
-@router.get("/logs/", response_model=InventoryLogResponse, dependencies=[require_permission("WAREHOUSE_MANAGEMENT")])
+@router.get("/logs/", response_model=InventoryLogResponse, dependencies=[Depends(require_permission("WAREHOUSE_MANAGEMENT"))])
 async def get_inventory_logs(
     skip: int = 0,
     limit: int = 10,
@@ -111,7 +111,7 @@ async def get_product_inventory(
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@router.patch("/{product_id}/adjust", dependencies=[require_permission("WAREHOUSE_MANAGEMENT")])
+@router.patch("/{product_id}/adjust", dependencies=[Depends(require_permission("WAREHOUSE_MANAGEMENT"))])
 async def adjust_inventory(
     product_id: int,
     adjust_data: InventoryAdjust,

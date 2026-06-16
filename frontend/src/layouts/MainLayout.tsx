@@ -45,12 +45,13 @@ const MainLayout: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG, colorPrimary },
   } = theme.useToken();
   const isAdmin = user?.role.name === 'admin';
+  const canViewNotifications = user?.role.name === 'admin' || user?.role.name === 'manager';
   const permissionSet = new Set(user?.permissions || []);
   const hasPermission = (code: string) => isAdmin || permissionSet.has(code);
   const canViewReports = hasPermission('REPORT_VIEW');
 
   const fetchNotifications = async () => {
-    if (!isAdmin) return;
+    if (!canViewNotifications) return;
     try {
       const res = await api.get('/notifications/');
       setNotifications(res.data.items);
@@ -62,11 +63,15 @@ const MainLayout: React.FC = () => {
 
   useEffect(() => {
     fetchNotifications();
-    if (!isAdmin) return;
+    if (!canViewNotifications) return;
 
+    window.addEventListener('notifications:refresh', fetchNotifications);
     const interval = window.setInterval(fetchNotifications, 30000);
-    return () => window.clearInterval(interval);
-  }, [isAdmin]);
+    return () => {
+      window.removeEventListener('notifications:refresh', fetchNotifications);
+      window.clearInterval(interval);
+    };
+  }, [canViewNotifications]);
 
   const handleNotificationClick = async (notification: AdminNotification) => {
     if (!notification.is_read) {
@@ -74,7 +79,10 @@ const MainLayout: React.FC = () => {
       fetchNotifications();
     }
     
-    if (notification.type === 'low_stock') {
+    const normalizedTitle = notification.title.toLowerCase();
+    if (normalizedTitle.includes('nguyên vật liệu') || normalizedTitle.includes('nguyen vat lieu')) {
+      navigate('/raw-materials');
+    } else if (notification.type === 'low_stock') {
       navigate('/inventory');
     } else {
       navigate('/production/weekly');
@@ -150,7 +158,7 @@ const MainLayout: React.FC = () => {
       icon: <UserOutlined style={{ fontSize: '18px' }} />,
       label: 'Khách hàng',
       children: [
-        { key: '/customers', label: 'Danh sách khách hàng' },
+        { key: '/customers', label: 'Danh sách khách hàng', hidden: !hasPermission('CUSTOMER_MANAGEMENT') },
         { key: '/customer-debts', label: 'Công nợ khách hàng', hidden: !hasPermission('DEBT_MANAGEMENT') },
       ]
     },
@@ -158,6 +166,7 @@ const MainLayout: React.FC = () => {
       key: '/products',
       icon: <ShoppingOutlined style={{ fontSize: '18px' }} />,
       label: 'Sản phẩm',
+      hidden: !hasPermission('PRODUCT_MANAGEMENT'),
     },
     {
       key: '/inventory',
@@ -169,6 +178,7 @@ const MainLayout: React.FC = () => {
       key: '/orders',
       icon: <FileTextOutlined style={{ fontSize: '18px' }} />,
       label: 'Đơn hàng',
+      hidden: !hasPermission('ORDER_MANAGEMENT'),
     },
     {
       key: '/production-group',
@@ -191,6 +201,7 @@ const MainLayout: React.FC = () => {
       children: [
         { key: '/raw-materials', label: 'Danh sách NVL' },
         { key: '/raw-material-logs', label: 'Lịch sử nhập xuất' },
+        { key: '/material-requests', label: 'Yêu cầu nhập hàng' },
       ]
     },
     {
@@ -231,7 +242,7 @@ const MainLayout: React.FC = () => {
     .map((item: any) => {
       if (!item.children) return item;
       const children = (item.children as any[]).filter((c) => !c.hidden);
-      return { ...item, children };
+      return { ...item, children, hidden: item.hidden || children.length === 0 };
     })
     .filter((item: any) => !item.hidden);
 
@@ -318,7 +329,7 @@ const MainLayout: React.FC = () => {
             style={{ fontSize: '18px' }}
           />
           <div className="flex items-center gap-6">
-            {isAdmin && (
+            {canViewNotifications && (
               <Popover content={notificationContent} trigger="click" placement="bottomRight">
                 <Badge count={unreadCount} size="small">
                   <Button

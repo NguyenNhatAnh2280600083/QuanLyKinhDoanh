@@ -11,7 +11,7 @@ from .auth import get_current_user
 from ..models.models import User
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/bom", tags=["BOM"], dependencies=[require_permission("BOM_MANAGEMENT")])
+router = APIRouter(prefix="/bom", tags=["BOM"], dependencies=[Depends(require_permission("BOM_MANAGEMENT"))])
 
 @router.get("/product/{product_id}", response_model=List[BOM])
 async def get_bom_by_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

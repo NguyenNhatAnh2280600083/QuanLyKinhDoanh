@@ -10,6 +10,8 @@ export interface ProductionPlan {
   year: number;
   start_date: string;
   end_date: string;
+  started_at?: string | null;
+  completed_at?: string | null;
   status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   progress_percent: number;
   note: string;
@@ -49,6 +51,12 @@ export interface MaterialRequirement {
   missing: number;
 }
 
+export interface UpdateProgressData {
+  completed_quantity: number;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
 export interface MaterialRequirementsResponse {
   materials: MaterialRequirement[];
 }
@@ -82,26 +90,40 @@ const productionPlanService = {
     const res = await api.get<ProductionPlan>(`/production-plans/${id}`);
     return res.data;
   },
-  updateProgress: async (id: number, completedQuantity: number) => {
+  updateProgress: async (id: number, data: UpdateProgressData) => {
     const res = await api.put<{
       plan_code: string;
       planned_quantity: number;
       completed_quantity: number;
       progress_percent: number;
       status: string;
-    }>(`/production-plans/${id}/progress`, { completed_quantity: completedQuantity });
+    }>(`/production-plans/${id}/progress`, data);
     return res.data;
   },
-  completePlan: async (id: number) => {
+  completePlan: async (id: number, data?: UpdateProgressData) => {
     const res = await api.put<{
       message: string;
       plan_code: string;
       status: string;
-    }>(`/production-plans/${id}/complete`);
+    }>(`/production-plans/${id}/complete`, data);
+    return res.data;
+  },
+  cancelPlan: async (id: number) => {
+    const res = await api.put<{
+      message: string;
+      plan_code: string;
+      status: string;
+    }>(`/production-plans/${id}/cancel`);
+    return res.data;
+  },
+  deletePlan: async (id: number) => {
+    const res = await api.delete<{ message: string }>(`/production-plans/${id}`);
     return res.data;
   },
   getMaterialRequirements: async (id: number) => {
-    const res = await api.get<MaterialRequirementsResponse>(`/production-plans/${id}/material-requirements`);
+    const res = await api.get<MaterialRequirementsResponse>(`/production-plans/${id}/material-requirements`, {
+      params: { t: Date.now() }
+    });
     return res.data;
   },
   getDashboard: async () => {

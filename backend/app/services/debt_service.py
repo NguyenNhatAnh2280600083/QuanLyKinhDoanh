@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, and_, or_
 from datetime import datetime, timedelta
 from ..models.models import CustomerDebt, DebtPayment, Order, OrderStatus, DebtStatus, Customer, User
@@ -39,7 +39,15 @@ class DebtService:
 
     @staticmethod
     def get_debts(db: Session, customer_id: int = None, status: str = None, start_date: datetime = None, end_date: datetime = None):
-        query = db.query(CustomerDebt).join(Customer).join(Order)
+        query = (
+            db.query(CustomerDebt)
+            .join(Customer)
+            .join(Order)
+            .options(
+                joinedload(CustomerDebt.customer),
+                joinedload(CustomerDebt.order)
+            )
+        )
         
         if customer_id:
             query = query.filter(CustomerDebt.customer_id == customer_id)
@@ -72,7 +80,16 @@ class DebtService:
 
     @staticmethod
     def get_debt_detail(db: Session, debt_id: int):
-        debt = db.query(CustomerDebt).filter(CustomerDebt.id == debt_id).first()
+        debt = (
+            db.query(CustomerDebt)
+            .options(
+                joinedload(CustomerDebt.customer),
+                joinedload(CustomerDebt.order),
+                selectinload(CustomerDebt.payments).joinedload(DebtPayment.user)
+            )
+            .filter(CustomerDebt.id == debt_id)
+            .first()
+        )
         if not debt:
             raise HTTPException(status_code=404, detail="Debt not found")
         return debt

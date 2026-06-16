@@ -20,6 +20,7 @@ from .routers import (
     users,
     raw_materials,
     weekly_production_planning,
+    material_requests,
 )
 from .config import settings
 from .database import engine, Base
@@ -49,6 +50,21 @@ def ensure_schema_updates():
                 # Recreate them
                 Base.metadata.create_all(bind=engine)
                 print("--- MIGRATION: Recreated production plans tables successfully ---")
+        
+        # Check and add started_at and completed_at columns to production_plans
+        started_at_col = conn.execute(
+            text("SHOW COLUMNS FROM production_plans LIKE 'started_at'")
+        ).mappings().first()
+        if not started_at_col:
+            print("--- MIGRATION: Adding started_at column to production_plans ---")
+            conn.execute(text("ALTER TABLE production_plans ADD COLUMN started_at DATETIME NULL"))
+        
+        completed_at_col = conn.execute(
+            text("SHOW COLUMNS FROM production_plans LIKE 'completed_at'")
+        ).mappings().first()
+        if not completed_at_col:
+            print("--- MIGRATION: Adding completed_at column to production_plans ---")
+            conn.execute(text("ALTER TABLE production_plans ADD COLUMN completed_at DATETIME NULL"))
 
         # Check and add customer_type to customers table
         customer_type_column = conn.execute(
@@ -128,6 +144,7 @@ app.include_router(raw_materials.router)
 app.include_router(bom.router)
 app.include_router(customer_debts.router)
 app.include_router(employee_reports.router)
+app.include_router(material_requests.router)
 
 @app.get("/")
 async def root():

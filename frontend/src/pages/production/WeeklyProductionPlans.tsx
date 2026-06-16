@@ -12,7 +12,9 @@ import {
   CalendarOutlined, 
   ClockCircleOutlined, 
   LineChartOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -131,6 +133,43 @@ const WeeklyProductionPlans: React.FC = () => {
     }
   };
 
+  const handleCancel = async (id: number) => {
+    Modal.confirm({
+      title: 'Xác nhận huỷ kế hoạch',
+      content: 'Bạn có chắc chắn muốn huỷ kế hoạch sản xuất này?',
+      okText: 'Xác nhận',
+      cancelText: 'Không',
+      onOk: async () => {
+        try {
+          await productionPlanService.cancelPlan(id);
+          message.success('Huỷ kế hoạch thành công');
+          fetchPlans();
+        } catch (error: any) {
+          message.error(error.response?.data?.detail || 'Lỗi khi huỷ kế hoạch');
+        }
+      }
+    });
+  };
+
+  const handleDelete = async (id: number) => {
+    Modal.confirm({
+      title: 'Xác nhận xoá vĩnh viễn',
+      content: 'Bạn có chắc chắn muốn xoá kế hoạch này vĩnh viễn khỏi cơ sở dữ liệu? Hành động này không thể hoàn tác!',
+      okText: 'Xoá vĩnh viễn',
+      cancelText: 'Không',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await productionPlanService.deletePlan(id);
+          message.success('Xoá kế hoạch vĩnh viễn thành công');
+          fetchPlans();
+        } catch (error: any) {
+          message.error(error.response?.data?.detail || 'Lỗi khi xoá kế hoạch');
+        }
+      }
+    });
+  };
+
   const getStatusTag = (status: string) => {
     switch (status) {
       case 'PLANNED':
@@ -144,6 +183,27 @@ const WeeklyProductionPlans: React.FC = () => {
       default:
         return <Tag>{status}</Tag>;
     }
+  };
+
+  const getProductionDuration = (startedAt?: string | null, completedAt?: string | null) => {
+    if (!startedAt || !completedAt) return <span className="text-gray-400">—</span>;
+    
+    const start = dayjs(startedAt);
+    const end = dayjs(completedAt);
+    const duration = end.diff(start, 'millisecond');
+    
+    const days = Math.floor(duration / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((duration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let durationText = '';
+    if (days > 0) durationText += `${days} ngày `;
+    if (hours > 0) durationText += `${hours} giờ `;
+    if (minutes > 0) durationText += `${minutes} phút`;
+    
+    if (!durationText) return '< 1 phút';
+    
+    return durationText.trim();
   };
 
   const columns = [
@@ -186,6 +246,23 @@ const WeeklyProductionPlans: React.FC = () => {
           </span>
         </Space>
       )
+    },
+    {
+      title: 'Thời gian bắt đầu',
+      dataIndex: 'started_at',
+      key: 'started_at',
+      render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY HH:mm') : <span className="text-gray-400">—</span>
+    },
+    {
+      title: 'Thời gian hoàn thành',
+      dataIndex: 'completed_at',
+      key: 'completed_at',
+      render: (date: string) => date ? dayjs(date).format('DD/MM/YYYY HH:mm') : <span className="text-gray-400">—</span>
+    },
+    {
+      title: 'Thời gian sản xuất',
+      key: 'production_duration',
+      render: (_: any, record: any) => getProductionDuration(record.started_at, record.completed_at)
     },
     {
       title: 'Tiến độ sản xuất',
@@ -231,6 +308,30 @@ const WeeklyProductionPlans: React.FC = () => {
                 onClick={() => handleQuickComplete(record.id)}
               >
                 Hoàn thành
+              </Button>
+            </Tooltip>
+          )}
+          {isAdminOrManager && record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
+            <Tooltip title="Huỷ kế hoạch">
+              <Button 
+                type="text" 
+                style={{ color: '#ff4d4f' }}
+                icon={<CloseCircleOutlined />} 
+                onClick={() => handleCancel(record.id)}
+              >
+                Huỷ
+              </Button>
+            </Tooltip>
+          )}
+          {isAdminOrManager && (
+            <Tooltip title="Xoá vĩnh viễn">
+              <Button 
+                type="text" 
+                style={{ color: '#faad14' }}
+                icon={<DeleteOutlined />} 
+                onClick={() => handleDelete(record.id)}
+              >
+                Xoá
               </Button>
             </Tooltip>
           )}

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from fastapi import HTTPException
 from ..models.models import (
     Product, Order, OrderItem, ProductionPlan, 
@@ -82,31 +82,25 @@ class WeeklyProductionPlanningService:
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = start_date + timedelta(days=6, hours=23, minutes=59, seconds=59)
 
-        # Retrieve starting plan count for generating plan codes
-        plan_count = db.query(ProductionPlan).filter(ProductionPlan.year == request.year).count()
+        # Retrieve starting plan count or highest plan code
+        max_plan = (
+            db.query(ProductionPlan)
+            .filter(ProductionPlan.year == request.year)
+            .order_by(desc(ProductionPlan.plan_code))
+            .first()
+        )
+        starting_num = 0
+        if max_plan:
+            try:
+                starting_num = int(max_plan.plan_code.split("-")[-1])
+            except (ValueError, IndexError):
+                starting_num = db.query(ProductionPlan).filter(ProductionPlan.year == request.year).count()
+        else:
+            starting_num = 0
 
         for item in request.plans:
-            # Check if plan already exists for product in this week
-            existing = (
-                db.query(ProductionPlan)
-                .filter(
-                    ProductionPlan.product_id == item.product_id,
-                    ProductionPlan.week_number == request.week_number,
-                    ProductionPlan.year == request.year,
-                    ProductionPlan.status != ProductionStatus.CANCELLED
-                )
-                .first()
-            )
-            if existing:
-                product = db.query(Product).filter(Product.id == item.product_id).first()
-                p_name = product.name if product else f"ID {item.product_id}"
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Kế hoạch sản xuất cho sản phẩm '{p_name}' trong tuần {request.week_number}/{request.year} đã tồn tại."
-                )
-
-            plan_count += 1
-            plan_code = f"PP-{request.year}-{plan_count:03d}"
+            starting_num += 1
+            plan_code = f"PP-{request.year}-{starting_num:03d}"
 
             new_plan = ProductionPlan(
                 plan_code=plan_code,

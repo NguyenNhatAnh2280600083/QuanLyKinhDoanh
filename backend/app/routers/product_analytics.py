@@ -13,7 +13,7 @@ from .auth import get_current_user
 from ..models.models import User
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/reports/products", tags=["Product Analytics"], dependencies=[require_permission("PRODUCT_ANALYTICS_VIEW")])
+router = APIRouter(prefix="/reports/products", tags=["Product Analytics"], dependencies=[Depends(require_permission("PRODUCT_ANALYTICS_VIEW"))])
 
 @router.get("/top-selling", response_model=List[ProductTopSelling])
 async def get_top_selling(

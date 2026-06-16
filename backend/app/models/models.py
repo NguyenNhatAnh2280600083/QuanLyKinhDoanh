@@ -44,6 +44,12 @@ class RawMaterialLogType(enum.Enum):
     IMPORT = "IMPORT"
     EXPORT = "EXPORT"
 
+class MaterialRequestStatus(enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    COMPLETED = "COMPLETED"
+
 class Role(Base):
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
@@ -267,6 +273,8 @@ class ProductionPlan(Base):
     year = Column(Integer, nullable=False)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
     status = Column(Enum(ProductionStatus), default=ProductionStatus.PLANNED)
     progress_percent = Column(Float, default=0.0)
     note = Column(Text)
@@ -330,3 +338,25 @@ class DebtPayment(Base):
 
     debt = relationship("CustomerDebt", back_populates="payments")
     user = relationship("User")
+
+class MaterialRequest(Base):
+    __tablename__ = "material_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    request_code = Column(String(50), unique=True, index=True, nullable=False)
+    material_id = Column(Integer, ForeignKey("raw_materials.id"), nullable=False)
+    requested_quantity = Column(Float, nullable=False)
+    current_stock = Column(Float, nullable=False)
+    missing_quantity = Column(Float, nullable=False)
+    reason = Column(Text)
+    status = Column(Enum(MaterialRequestStatus), default=MaterialRequestStatus.PENDING)
+    production_plan_id = Column(Integer, ForeignKey("production_plans.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    material = relationship("RawMaterial")
+    creator = relationship("User", foreign_keys=[created_by])
+    approver = relationship("User", foreign_keys=[approved_by])
+    production_plan = relationship("ProductionPlan")

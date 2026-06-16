@@ -5,8 +5,9 @@ from ..database import get_db
 from ..models.models import Customer, User
 from ..schemas.schemas import Customer as CustomerSchema, CustomerCreate
 from .auth import get_current_user
+from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/customers", tags=["Customers"])
+router = APIRouter(prefix="/customers", tags=["Customers"], dependencies=[Depends(require_permission("CUSTOMER_MANAGEMENT"))])
 
 @router.get("/", response_model=List[CustomerSchema])
 async def get_customers(

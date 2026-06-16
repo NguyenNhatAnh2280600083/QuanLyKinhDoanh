@@ -9,7 +9,7 @@ from .auth import get_current_user
 from ..models.models import User
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/reports/revenue/employee", tags=["Employee Revenue Reports"], dependencies=[require_permission("REPORT_VIEW")])
+router = APIRouter(prefix="/reports/revenue/employee", tags=["Employee Revenue Reports"], dependencies=[Depends(require_permission("REPORT_VIEW"))])
 
 @router.get("/", response_model=List[schemas.EmployeeRevenue])
 async def get_employee_revenue(

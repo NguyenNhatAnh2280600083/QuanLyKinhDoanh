@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models.models import Product, Category, User, InventoryLog, InventoryLogType
 from ..schemas.schemas import Product as ProductSchema, ProductCreate, Category as CategorySchema, CategoryCreate
 from .auth import get_current_user, check_role
+from ..utils.guards import require_permission
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -19,7 +20,7 @@ async def get_categories(db: Session = Depends(get_db)):
 async def create_category(
     category_in: CategoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_role(["admin", "manager"]))
+    current_user: User = Depends(require_permission("PRODUCT_MANAGEMENT"))
 ):
     new_cat = Category(**category_in.dict())
     db.add(new_cat)
@@ -45,7 +46,7 @@ async def get_products(
 async def create_product(
     product_in: ProductCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_role(["admin", "manager"]))
+    current_user: User = Depends(require_permission("PRODUCT_MANAGEMENT"))
 ):
     new_product = Product(**product_in.dict())
     db.add(new_product)
@@ -71,7 +72,7 @@ async def update_product(
     product_id: int,
     product_in: ProductCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_role(["admin", "manager"]))
+    current_user: User = Depends(require_permission("PRODUCT_MANAGEMENT"))
 ):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
@@ -102,7 +103,7 @@ async def update_product(
 async def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_role(["admin", "manager"]))
+    current_user: User = Depends(require_permission("PRODUCT_MANAGEMENT"))
 ):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
@@ -117,7 +118,7 @@ async def upload_image(
     product_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_role(["admin", "manager"]))
+    current_user: User = Depends(require_permission("PRODUCT_MANAGEMENT"))
 ):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:

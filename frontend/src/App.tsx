@@ -22,6 +22,7 @@ import RawMaterials from './pages/RawMaterials';
 import RawMaterialLogs from './pages/RawMaterialLogs';
 import ProductBOM from './pages/ProductBOM';
 import MaterialRequirementCalculator from './pages/MaterialRequirementCalculator';
+import MaterialRequests from './pages/MaterialRequests';
 import Profile from './pages/Profile';
 import WeeklyProductionSuggestion from './pages/production/WeeklyProductionSuggestion';
 import WeeklyProductionPlans from './pages/production/WeeklyProductionPlans';
@@ -80,7 +81,14 @@ const App: React.FC = () => {
         }>
           <Route index element={<Navigate to="/dashboard" />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="customers" element={<CustomerManagement />} />
+          <Route
+            path="customers"
+            element={
+              <PermissionRoute permissions={['CUSTOMER_MANAGEMENT']}>
+                <CustomerManagement />
+              </PermissionRoute>
+            }
+          />
           <Route path="users" element={<Navigate to="/admin/users" replace />} />
           <Route
             path="admin/users"
@@ -106,7 +114,14 @@ const App: React.FC = () => {
               </AdminOnlyRoute>
             }
           />
-          <Route path="products" element={<ProductManagement />} />
+          <Route
+            path="products"
+            element={
+              <PermissionRoute permissions={['PRODUCT_MANAGEMENT']}>
+                <ProductManagement />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="inventory"
             element={
@@ -123,7 +138,14 @@ const App: React.FC = () => {
               </PermissionRoute>
             }
           />
-          <Route path="orders" element={<OrderManagement />} />
+          <Route
+            path="orders"
+            element={
+              <PermissionRoute permissions={['ORDER_MANAGEMENT']}>
+                <OrderManagement />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="customer-debts"
             element={
@@ -199,6 +221,14 @@ const App: React.FC = () => {
             element={
               <PermissionRoute permissions={['RAW_MATERIAL_MANAGEMENT']}>
                 <RawMaterialLogs />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="material-requests"
+            element={
+              <PermissionRoute permissions={['RAW_MATERIAL_MANAGEMENT']}>
+                <MaterialRequests />
               </PermissionRoute>
             }
           />

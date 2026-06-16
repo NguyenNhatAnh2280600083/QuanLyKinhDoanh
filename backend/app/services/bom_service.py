@@ -79,6 +79,18 @@ class BOMService:
         }
 
     @staticmethod
+    def get_missing_materials_for_production(db: Session, product_id: int, quantity: float):
+        requirements = BOMService.calculate_requirements(db, product_id, quantity)
+        return [
+            {
+                **item,
+                "missing_quantity": max(0.0, item["required_quantity"] - item["current_stock"])
+            }
+            for item in requirements["required_materials"]
+            if not item["enough"]
+        ]
+
+    @staticmethod
     def deduct_materials_for_production(db: Session, plan_id: int, user_id: int):
         plan = db.query(ProductionPlan).filter(ProductionPlan.id == plan_id).first()
         if not plan:

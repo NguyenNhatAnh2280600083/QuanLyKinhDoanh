@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -21,8 +22,26 @@ from ..utils.notifications import check_low_stock_and_notify
 from ..services.debt_service import DebtService
 from ..schemas.schemas import Order as OrderSchema, OrderCreate
 from .auth import get_current_user
+from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/orders", tags=["Orders"])
+router = APIRouter(prefix="/orders", tags=["Orders"], dependencies=[Depends(require_permission("ORDER_MANAGEMENT"))])
+
+def _generate_plan_code(db: Session, year: int) -> str:
+    max_plan = (
+        db.query(ProductionPlan)
+        .filter(ProductionPlan.year == year)
+        .order_by(desc(ProductionPlan.plan_code))
+        .first()
+    )
+    if not max_plan:
+        return f"PP-{year}-001"
+    try:
+        last_num_str = max_plan.plan_code.split("-")[-1]
+        next_num = int(last_num_str) + 1
+        return f"PP-{year}-{next_num:03d}"
+    except (ValueError, IndexError):
+        plan_count = db.query(ProductionPlan).filter(ProductionPlan.year == year).count()
+        return f"PP-{year}-{plan_count + 1:03d}"
 
 @router.get("/", response_model=List[OrderSchema])
 async def get_orders(
@@ -118,6 +137,9 @@ async def update_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="Đơn hàng không tìm thấy")
     
+    if current_user.role.name == "sales" and order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật đơn hàng này")
+    
     old_status = order.status
 
     # ===== FIX 1: Guard against invalid status transitions =====
@@ -175,9 +197,8 @@ async def update_order_status(
                 start_dt = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
                 end_dt = start_dt + timedelta(days=6, hours=23, minutes=59, seconds=59)
                 
-                # Sequential plan code
-                plan_count = db.query(ProductionPlan).filter(ProductionPlan.year == yr).count()
-                p_code = f"PP-{yr}-{plan_count + 1:03d}"
+                # Sequential plan code using MAX plan code to avoid collisions & count bugs
+                p_code = _generate_plan_code(db, yr)
                 
                 db.add(ProductionPlan(
                     plan_code=p_code,
@@ -254,4 +275,8 @@ async def get_order(
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Đơn hàng không tìm thấy")
+    
+    if current_user.role.name == "sales" and order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập đơn hàng này")
+        
     return order 

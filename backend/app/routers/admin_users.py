@@ -31,37 +31,37 @@ def _to_user_admin_out(user: User) -> dict:
     }
 
 
-@router.get("", response_model=List[UserAdminOut], dependencies=[require_role("admin")])
+@router.get("", response_model=List[UserAdminOut], dependencies=[Depends(require_role("admin"))])
 async def list_users(db: Session = Depends(get_db)):
     users = UserAdminService.list_users(db)
     return [_to_user_admin_out(u) for u in users]
 
 
-@router.post("", response_model=UserAdminOut, dependencies=[require_role("admin")])
+@router.post("", response_model=UserAdminOut, dependencies=[Depends(require_role("admin"))])
 async def create_user(user_in: UserAdminCreate, db: Session = Depends(get_db)):
     user = UserAdminService.create_user(db, user_in)
     return _to_user_admin_out(user)
 
 
-@router.put("/{user_id}", response_model=UserAdminOut, dependencies=[require_role("admin")])
+@router.put("/{user_id}", response_model=UserAdminOut, dependencies=[Depends(require_role("admin"))])
 async def update_user(user_id: int, user_in: UserAdminUpdate, db: Session = Depends(get_db)):
     user = UserAdminService.update_user(db, user_id, user_in)
     return _to_user_admin_out(user)
 
 
-@router.put("/{user_id}/role", response_model=UserAdminOut, dependencies=[require_role("admin")])
+@router.put("/{user_id}/role", response_model=UserAdminOut, dependencies=[Depends(require_role("admin"))])
 async def change_user_role(user_id: int, req: ChangeUserRoleRequest, db: Session = Depends(get_db)):
     user = UserAdminService.change_role(db, user_id, req.role_id)
     return _to_user_admin_out(user)
 
 
-@router.put("/{user_id}/lock", response_model=UserAdminOut, dependencies=[require_role("admin")])
+@router.put("/{user_id}/lock", response_model=UserAdminOut, dependencies=[Depends(require_role("admin"))])
 async def lock_user(user_id: int, db: Session = Depends(get_db)):
     user = UserAdminService.lock_user(db, user_id)
     return _to_user_admin_out(user)
 
 
-@router.put("/{user_id}/unlock", response_model=UserAdminOut, dependencies=[require_role("admin")])
+@router.put("/{user_id}/unlock", response_model=UserAdminOut, dependencies=[Depends(require_role("admin"))])
 async def unlock_user(user_id: int, db: Session = Depends(get_db)):
     user = UserAdminService.unlock_user(db, user_id)
     return _to_user_admin_out(user)

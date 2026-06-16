@@ -9,7 +9,7 @@ from .auth import get_current_user
 from ..models.models import User
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[require_permission("REPORT_VIEW")])
+router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[Depends(require_permission("REPORT_VIEW"))])
 
 @router.get("/revenue/channel", response_model=List[RevenueByChannel])
 async def get_revenue_by_channel(

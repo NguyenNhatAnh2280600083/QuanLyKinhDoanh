@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Card, Col, Row, Button, Progress, Descriptions, Tag, Divider, 
-  Table, message, Modal, Form, InputNumber, Space, Typography, Alert, Badge, Spin, Empty
+  Table, message, Modal, Form, InputNumber, Space, Typography, Alert, Badge, Spin, Empty, DatePicker 
 } from 'antd';
 import { 
   LeftOutlined, 
@@ -13,13 +13,38 @@ import {
   ScheduleOutlined,
   UserOutlined,
   DashboardOutlined,
-  GoldOutlined
+  GoldOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined,
+  SyncOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import productionPlanService, { ProductionPlan, MaterialRequirement } from '../services/productionPlanService';
+import productionPlanService, { ProductionPlan, MaterialRequirement, UpdateProgressData } from '../services/productionPlanService';
 import { useAuthStore } from '../store/authStore';
 
 const { Title, Text } = Typography;
+
+const getProductionDuration = (startedAt?: string | null, completedAt?: string | null) => {
+  if (!startedAt || !completedAt) return <span className="text-gray-400">—</span>;
+  
+  const start = dayjs(startedAt);
+  const end = dayjs(completedAt);
+  const duration = end.diff(start, 'millisecond');
+  
+  const days = Math.floor(duration / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((duration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+  
+  let durationText = '';
+  if (days > 0) durationText += `${days} ngày `;
+  if (hours > 0) durationText += `${hours} giờ `;
+  if (minutes > 0) durationText += `${minutes} phút`;
+  
+  if (!durationText) return '< 1 phút';
+  
+  return durationText.trim();
+};
 
 const ProductionPlanDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +69,8 @@ const ProductionPlanDetail: React.FC = () => {
     } catch (error) {
       message.error('Không thể tải chi tiết kế hoạch sản xuất');
       navigate('/production/weekly');
+      setMaterials([]);
+      message.error('Không thể tải danh sách nguyên vật liệu BOM cho kế hoạch');
     } finally {
       setLoading(false);
     }
@@ -55,6 +82,9 @@ const ProductionPlanDetail: React.FC = () => {
     try {
       const data = await productionPlanService.getMaterialRequirements(Number(id));
       setMaterials(data.materials);
+      if (!data.materials.length) {
+        console.warn('BOM material requirement response is empty for production plan', id);
+      }
     } catch (error) {
       console.error('Không thể tính toán nhu cầu nguyên vật liệu', error);
     } finally {
@@ -71,12 +101,14 @@ const ProductionPlanDetail: React.FC = () => {
     if (!plan) return;
     try {
       const values = await form.validateFields();
-      if (values.completed_quantity > plan.planned_quantity) {
-        message.error('Số lượng hoàn thành không thể lớn hơn số lượng kế hoạch!');
-        return;
-      }
 
-      await productionPlanService.updateProgress(plan.id, values.completed_quantity);
+      const updateData: UpdateProgressData = {
+        completed_quantity: values.completed_quantity,
+        started_at: values.started_at ? values.started_at.toISOString() : null,
+        completed_at: values.completed_at ? values.completed_at.toISOString() : null,
+      };
+
+      await productionPlanService.updateProgress(plan.id, updateData);
       message.success('Cập nhật tiến độ sản xuất thành công');
       setIsUpdateModalVisible(false);
       fetchPlanDetail();
@@ -114,6 +146,58 @@ const ProductionPlanDetail: React.FC = () => {
           fetchMaterials();
         } catch (error: any) {
           message.error(error.response?.data?.detail || 'Lỗi khi hoàn thành kế hoạch');
+        }
+      }
+    });
+  };
+
+  const handleCancel = () => {
+    if (!plan) return;
+    Modal.confirm({
+      title: 'Xác nhận huỷ kế hoạch sản xuất',
+      icon: <CloseCircleOutlined style={{ color: '#ff4d4f' }} />,
+      content: (
+        <div>
+          <p>Bạn có chắc chắn muốn huỷ kế hoạch sản xuất này?</p>
+          <p>Kế hoạch sẽ được đánh dấu <b>ĐÃ HỦY</b> và không thể khôi phục.</p>
+        </div>
+      ),
+      okText: 'Xác nhận huỷ',
+      cancelText: 'Đóng',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await productionPlanService.cancelPlan(plan.id);
+          message.success('Huỷ kế hoạch sản xuất thành công!');
+          fetchPlanDetail();
+        } catch (error: any) {
+          message.error(error.response?.data?.detail || 'Lỗi khi huỷ kế hoạch');
+        }
+      }
+    });
+  };
+
+  const handleDelete = () => {
+    if (!plan) return;
+    Modal.confirm({
+      title: 'Xác nhận xoá vĩnh viễn',
+      icon: <DeleteOutlined style={{ color: '#faad14' }} />,
+      content: (
+        <div>
+          <p>Bạn có chắc chắn muốn xoá kế hoạch này vĩnh viễn khỏi cơ sở dữ liệu?</p>
+          <p>Hành động này không thể hoàn tác!</p>
+        </div>
+      ),
+      okText: 'Xoá vĩnh viễn',
+      cancelText: 'Đóng',
+      okButtonProps: { danger: true, style: { backgroundColor: '#faad14', borderColor: '#faad14' } },
+      onOk: async () => {
+        try {
+          await productionPlanService.deletePlan(plan.id);
+          message.success('Xoá kế hoạch vĩnh viễn thành công!');
+          navigate('/production/weekly');
+        } catch (error: any) {
+          message.error(error.response?.data?.detail || 'Lỗi khi xoá kế hoạch');
         }
       }
     });
@@ -197,7 +281,10 @@ const ProductionPlanDetail: React.FC = () => {
     );
   }
 
+  const hasBOM = materials.length > 0;
   const anyMaterialMissing = materials.some(m => !m.enough);
+  const isActivePlan = plan.status !== 'COMPLETED' && plan.status !== 'CANCELLED';
+  const productionBlocked = !materialsLoading && isActivePlan && (!hasBOM || anyMaterialMissing);
 
   return (
     <div className="p-0">
@@ -217,6 +304,7 @@ const ProductionPlanDetail: React.FC = () => {
                 type="primary" 
                 ghost
                 icon={<EditOutlined />} 
+                disabled={productionBlocked}
                 onClick={() => setIsUpdateModalVisible(true)}
               >
                 Cập nhật tiến độ
@@ -225,11 +313,28 @@ const ProductionPlanDetail: React.FC = () => {
                 type="primary" 
                 style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                 icon={<CheckCircleOutlined />} 
+                disabled={productionBlocked}
                 onClick={handleComplete}
               >
                 Hoàn thành kế hoạch
               </Button>
+              <Button 
+                danger
+                icon={<CloseCircleOutlined />} 
+                onClick={handleCancel}
+              >
+                Huỷ kế hoạch
+              </Button>
             </>
+          )}
+          {isAdminOrManager && (
+            <Button 
+              icon={<DeleteOutlined />} 
+              onClick={handleDelete}
+              style={{ color: '#faad14', borderColor: '#faad14' }}
+            >
+              Xoá vĩnh viễn
+            </Button>
           )}
         </Space>
       </div>
@@ -253,6 +358,15 @@ const ProductionPlanDetail: React.FC = () => {
               <Descriptions.Item label="Tuần kế hoạch">Tuần {plan.week_number} năm {plan.year}</Descriptions.Item>
               <Descriptions.Item label="Thời gian thực hiện">
                 {dayjs(plan.start_date).format('DD/MM/YYYY')} - {dayjs(plan.end_date).format('DD/MM/YYYY')}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời gian bắt đầu sản xuất">
+                {plan.started_at ? dayjs(plan.started_at).format('DD/MM/YYYY HH:mm') : <span className="text-gray-400">Chưa bắt đầu</span>}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời gian hoàn thành">
+                {plan.completed_at ? dayjs(plan.completed_at).format('DD/MM/YYYY HH:mm') : <span className="text-gray-400">Chưa hoàn thành</span>}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời gian sản xuất">
+                {getProductionDuration(plan.started_at, plan.completed_at)}
               </Descriptions.Item>
               <Descriptions.Item label="Số lượng mục tiêu">{plan.planned_quantity.toLocaleString()} chiếc</Descriptions.Item>
               <Descriptions.Item label="Số lượng đã làm">{plan.completed_quantity.toLocaleString()} chiếc</Descriptions.Item>
@@ -309,7 +423,20 @@ const ProductionPlanDetail: React.FC = () => {
             bodyStyle={{ padding: 0 }}
           >
             <div className="p-4">
-              {anyMaterialMissing && plan.status !== 'COMPLETED' && plan.status !== 'CANCELLED' && (
+              {!materialsLoading && !hasBOM && isActivePlan && (
+                <Alert
+                  message={
+                    <span className="font-bold text-orange-700">Chưa thiết lập định mức BOM</span>
+                  }
+                  description="Sản phẩm trong kế hoạch này chưa có danh sách nguyên vật liệu theo định mức BOM, nên hệ thống không thể đánh giá đủ/thiếu NVL. Vui lòng thiết lập BOM trước khi vận hành sản xuất."
+                  type="warning"
+                  showIcon
+                  icon={<WarningOutlined className="text-orange-500" />}
+                  className="mb-4 bg-orange-50 border-orange-100 text-orange-700"
+                />
+              )}
+
+              {hasBOM && anyMaterialMissing && isActivePlan && (
                 <Alert
                   message={
                     <span className="font-bold text-red-700">Cảnh báo thiếu hụt Nguyên vật liệu</span>
@@ -322,7 +449,7 @@ const ProductionPlanDetail: React.FC = () => {
                 />
               )}
 
-              {!anyMaterialMissing && plan.status !== 'COMPLETED' && plan.status !== 'CANCELLED' && (
+              {hasBOM && !anyMaterialMissing && isActivePlan && (
                 <Alert
                   message="Đủ Nguyên vật liệu"
                   description="Tồn kho nguyên vật liệu hiện tại hoàn toàn đáp ứng đủ định mức sản xuất theo kế hoạch tuần. Sẵn sàng hoạt động sản xuất."
@@ -379,10 +506,33 @@ const ProductionPlanDetail: React.FC = () => {
           >
             <InputNumber 
               min={0} 
-              max={plan.planned_quantity} 
               style={{ width: '100%' }} 
               size="large" 
               placeholder="Nhập số lượng thực tế..."
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="started_at"
+            label="Thời gian bắt đầu sản xuất"
+          >
+            <DatePicker 
+              showTime 
+              style={{ width: '100%' }} 
+              size="large" 
+              placeholder="Chọn thời gian bắt đầu"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="completed_at"
+            label="Thời gian hoàn thành sản xuất"
+          >
+            <DatePicker 
+              showTime 
+              style={{ width: '100%' }} 
+              size="large" 
+              placeholder="Chọn thời gian hoàn thành"
             />
           </Form.Item>
 
@@ -394,7 +544,5 @@ const ProductionPlanDetail: React.FC = () => {
     </div>
   );
 };
-
-import { ClockCircleOutlined, SyncOutlined } from '@ant-design/icons';
 
 export default ProductionPlanDetail;

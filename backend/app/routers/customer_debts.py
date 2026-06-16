@@ -9,7 +9,7 @@ from ..services.debt_service import DebtService
 from .auth import get_current_user
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/customer-debts", tags=["Customer Debts"], dependencies=[require_permission("DEBT_MANAGEMENT")])
+router = APIRouter(prefix="/customer-debts", tags=["Customer Debts"], dependencies=[Depends(require_permission("DEBT_MANAGEMENT"))])
 
 @router.get("/", response_model=List[schemas.CustomerDebtListItem])
 async def get_customer_debts(

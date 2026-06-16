@@ -234,6 +234,8 @@ class ProductionPlanUpdateStatus(BaseModel):
 class ProductionPlanUpdateQuantity(BaseModel):
     completed_quantity: int
     status: Optional[ProductionStatus] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
 class ProductionPlan(BaseModel):
     id: int
@@ -245,6 +247,8 @@ class ProductionPlan(BaseModel):
     year: int
     start_date: datetime
     end_date: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     status: ProductionStatus
     progress_percent: float
     note: Optional[str] = None

@@ -11,7 +11,7 @@ from .auth import get_current_user
 from ..models.models import User
 from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/raw-materials", tags=["Raw Materials"], dependencies=[require_permission("RAW_MATERIAL_MANAGEMENT")])
+router = APIRouter(prefix="/raw-materials", tags=["Raw Materials"], dependencies=[Depends(require_permission("RAW_MATERIAL_MANAGEMENT"))])
 
 @router.get("/", response_model=List[RawMaterial])
 async def get_raw_materials(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
