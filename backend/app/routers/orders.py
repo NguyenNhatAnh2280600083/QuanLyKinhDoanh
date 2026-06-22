@@ -156,6 +156,15 @@ async def update_order_status(
             detail=f"Không thể chuyển trạng thái từ '{old_status.value}' sang '{status.value}'"
         )
 
+    # ===== Guard: Check unfinished production plans before transitioning to READY_TO_SHIP or COMPLETED =====
+    if status in [OrderStatus.READY_TO_SHIP, OrderStatus.COMPLETED]:
+        unfinished_plans = [p for p in order.production_plans if p.status not in [ProductionStatus.COMPLETED, ProductionStatus.CANCELLED]]
+        if unfinished_plans:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Không thể chuyển sang '{status.value}' vì có {len(unfinished_plans)} kế hoạch sản xuất chưa hoàn thành."
+            )
+
     # Check permissions
     if status == OrderStatus.APPROVED and current_user.role.name not in ["sales", "manager", "admin"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền duyệt đơn hàng")
@@ -235,8 +244,16 @@ async def update_order_status(
             if plan:
                 # Stock used = (total ordered) - (amount sent to production)
                 used_from_stock = plan.required_quantity - plan.planned_quantity
-                # Return only what was actually produced (capped at planned, excess already went to stock)
-                produced_for_order = min(plan.completed_quantity, plan.planned_quantity)
+                
+                # If plan was completed, the produced quantity was already added to stock,
+                # so it remains in stock (produced_for_order = 0).
+                # If not completed, the produced quantity was not added to stock on completion,
+                # so we add it now to stock.
+                if plan.status == ProductionStatus.COMPLETED:
+                    produced_for_order = 0
+                else:
+                    produced_for_order = min(plan.completed_quantity, plan.planned_quantity)
+                    
                 plan.is_stock_deducted = 0
                 plan.status = ProductionStatus.CANCELLED
             else:
@@ -261,6 +278,21 @@ async def update_order_status(
     
     # Auto create debt if order is completed
     if status == OrderStatus.COMPLETED:
+        # Deduct completed production plan quantity from stock when completing order
+        for plan in order.production_plans:
+            if plan.status == ProductionStatus.COMPLETED and plan.is_stock_deducted == 0:
+                product = db.query(Product).filter(Product.id == plan.product_id).with_for_update().first()
+                if product:
+                    product.stock_quantity = max(0, product.stock_quantity - plan.completed_quantity)
+                    db.add(InventoryLog(
+                        product_id=product.id,
+                        order_id=order.id,
+                        type=InventoryLogType.OUT,
+                        quantity=plan.completed_quantity,
+                        note=f"Xuất kho {plan.completed_quantity} sp hoàn thành sản xuất cho đơn #{order.id}",
+                        created_by=current_user.id
+                    ))
+                    plan.is_stock_deducted = 1
         DebtService.create_debt_from_order(db, order.id)
         
     db.commit()

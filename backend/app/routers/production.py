@@ -109,68 +109,6 @@ def _ensure_materials_available_or_notify(db: Session, plan: ProductionPlan, use
         detail=f"Không đủ nguyên vật liệu để tiếp tục sản xuất. Đã tạo yêu cầu nhập hàng chờ duyệt ({request_codes}) và thông báo Admin/Manager. Chi tiết: {shortage_summary}"
     )
 
-@router.get("/dashboard")
-async def get_production_dashboard(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    all_plans = db.query(ProductionPlan).options(joinedload(ProductionPlan.product)).all()
-    
-    total_plans = len(all_plans)
-    planned = sum(1 for p in all_plans if p.status == ProductionStatus.PLANNED)
-    in_progress = sum(1 for p in all_plans if p.status == ProductionStatus.IN_PROGRESS)
-    completed = sum(1 for p in all_plans if p.status == ProductionStatus.COMPLETED)
-    cancelled = sum(1 for p in all_plans if p.status == ProductionStatus.CANCELLED)
-    
-    active_plans = [p for p in all_plans if p.status != ProductionStatus.CANCELLED]
-    completion_rate = round(sum(p.progress_percent for p in active_plans) / len(active_plans)) if active_plans else 0
-    
-    # Group by week and year
-    weeks_data = {}
-    for p in active_plans:
-        key = (p.year, p.week_number)
-        if key not in weeks_data:
-            weeks_data[key] = {"planned": 0, "completed": 0, "progress_sum": 0.0, "count": 0}
-        weeks_data[key]["planned"] += p.planned_quantity
-        weeks_data[key]["completed"] += p.completed_quantity
-        weeks_data[key]["progress_sum"] += p.progress_percent
-        weeks_data[key]["count"] += 1
-
-    sorted_keys = sorted(weeks_data.keys())
-    
-    weekly_volume = []
-    weekly_progress = []
-    for key in sorted_keys:
-        yr, wk = key
-        data = weeks_data[key]
-        name = f"Tuần {wk}"
-        weekly_volume.append({
-            "name": name,
-            "planned": data["planned"],
-            "completed": data["completed"]
-        })
-        weekly_progress.append({
-            "name": name,
-            "progress": round(data["progress_sum"] / data["count"]) if data["count"] > 0 else 0
-        })
-        
-    status_distribution = [
-        {"name": "PLANNED", "value": planned, "label": "Chờ sản xuất"},
-        {"name": "IN_PROGRESS", "value": in_progress, "label": "Đang sản xuất"},
-        {"name": "COMPLETED", "value": completed, "label": "Hoàn thành"}
-    ]
-    
-    return {
-        "total_plans": total_plans,
-        "planned": planned,
-        "in_progress": in_progress,
-        "completed": completed,
-        "completion_rate": completion_rate,
-        "weekly_volume": weekly_volume,
-        "weekly_progress": weekly_progress,
-        "status_distribution": status_distribution
-    }
-
 @router.get("/", response_model=schemas.ProductionPlanResponse)
 async def get_production_plans(
     skip: int = 0,
@@ -183,7 +121,6 @@ async def get_production_plans(
     current_user: User = Depends(get_current_user)
 ):
     query = db.query(ProductionPlan)
-    
     if week_number is not None:
         query = query.filter(ProductionPlan.week_number == week_number)
     if year is not None:

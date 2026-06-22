@@ -7,8 +7,13 @@ from ..schemas import schemas
 from ..schemas import weekly_production_planning_schema as wp_schemas
 from ..routers.auth import get_current_user
 from ..services.weekly_production_planning_service import WeeklyProductionPlanningService
+from ..utils.guards import require_permission
 
-router = APIRouter(prefix="/production-plans", tags=["Weekly Production Planning"])
+router = APIRouter(
+    prefix="/production-plans",
+    tags=["Weekly Production Planning"],
+    dependencies=[Depends(require_permission("PRODUCTION_MANAGEMENT"))]
+)
 
 @router.get("/weekly-suggestions", response_model=List[wp_schemas.WeeklyProductionSuggestion])
 async def get_weekly_suggestions(
@@ -23,11 +28,6 @@ async def create_week_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role.name not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ Admin hoặc Manager mới có quyền tạo kế hoạch tuần"
-        )
     return WeeklyProductionPlanningService.create_week_plan(db, request, current_user.id)
 
 @router.get("/week/{year}/{week_number}", response_model=List[schemas.ProductionPlan])
