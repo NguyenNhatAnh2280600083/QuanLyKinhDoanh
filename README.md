@@ -22,6 +22,7 @@
 **Quản lý Bán hàng Kinh doanh** là một hệ thống ERP nội bộ được xây dựng với kiến trúc **Client-Server**, tách biệt Backend (API) và Frontend (SPA). Hệ thống hỗ trợ toàn bộ quy trình kinh doanh từ khâu nhận đơn hàng, kiểm tra tồn kho, lên kế hoạch sản xuất (bao gồm cả tính toán nhu cầu nguyên vật liệu theo định mức - BOM), đến khi giao hàng hoàn tất, đồng thời quản lý sát sao công nợ khách hàng và hiệu suất nhân viên.
 
 ### Điểm nổi bật
+
 - ✅ **Quy trình đơn hàng khép kín** — Từ tạo đơn → duyệt → sản xuất → xuất kho → hoàn tất.
 - ✅ **Quản lý tồn kho & Nguyên vật liệu** — Quản lý cả thành phẩm và nguyên vật liệu (Raw Materials), định mức sản xuất (BOM).
 - ✅ **Quản lý công nợ khách hàng** — Theo dõi thanh toán, ghi nhận nợ và nhắc nợ.
@@ -34,27 +35,32 @@
 ## ✨ Tính năng
 
 ### 1. Quản lý Đơn hàng & Công nợ
+
 - Tạo và xử lý đơn hàng chuyên nghiệp.
 - Ghi nhận trạng thái thanh toán và tự động tính toán công nợ (Customer Debts) nếu khách hàng chưa thanh toán đủ.
 - Theo dõi lịch sử thanh toán công nợ chi tiết.
 
 ### 2. Quản lý Sản xuất & Nguyên vật liệu (BOM)
+
 - Thiết lập Định mức nguyên vật liệu (Bill of Materials - BOM) cho từng sản phẩm.
 - Tính toán nhu cầu nguyên vật liệu để sản xuất (Material Requirement Calculator).
 - Quản lý nhập/xuất nguyên vật liệu.
 - Tự động sinh kế hoạch sản xuất và theo dõi tiến độ.
 
 ### 3. Quản lý Tồn kho
+
 - Quản lý tồn kho thành phẩm theo thời gian thực.
 - Cảnh báo tồn kho dưới ngưỡng an toàn (Low stock alerts).
 - Lịch sử xuất/nhập/điều chỉnh (Inventory Logs).
 
 ### 4. Báo cáo & Thống kê Nâng cao
+
 - Thống kê doanh thu theo kênh bán hàng, theo nhân viên, và theo khách hàng.
 - Phân tích hiệu suất sản phẩm (Product Analytics).
 - Dashboard tổng quan với các biểu đồ trực quan (Recharts).
 
 ### 5. Phân quyền & Bảo mật (RBAC)
+
 - Quản lý User, Role và Permission động.
 - Middleware / Guard bảo vệ các endpoint API dựa trên quyền hạn.
 
@@ -107,7 +113,9 @@
 ## 📁 Cấu trúc dự án
 
 ### Backend (`/backend`)
+
 Được tổ chức theo mô hình Controller - Service - Repository (thông qua SQLAlchemy), giúp tách biệt rõ ràng Business Logic.
+
 ```
 backend/
 ├── app/
@@ -136,7 +144,9 @@ backend/
 ```
 
 ### Frontend (`/frontend`)
+
 Được chia theo cấu trúc Feature-based, quản lý State tập trung bằng Zustand.
+
 ```
 frontend/
 ├── src/
@@ -240,31 +250,38 @@ sequenceDiagram
 ## 🚀 Cài đặt & Chạy
 
 ### Yêu cầu hệ thống
+
 - Python 3.10+
 - Node.js 16+
 - MySQL 8.0+
 
 ### 1. Backend
+
 ```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 ```
+
 Tạo file `backend/.env` với nội dung:
+
 ```env
 DATABASE_URL=mysql+pymysql://root:password@localhost:3306/sales_management
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
+
 Khởi tạo database và chạy Server:
+
 ```bash
 python run_seed.py  # Tạo bảng & dữ liệu mẫu (có sẵn User admin/admin)
 uvicorn app.main:app --reload
 ```
 
 ### 2. Frontend
+
 ```bash
 cd frontend
 npm install
@@ -274,6 +291,7 @@ npm run dev
 Truy cập hệ thống tại: `http://localhost:5173`
 API Swagger Docs: `http://localhost:8000/docs`
 
----
+## update deploy
+
 > **Dự án đồ án tốt nghiệp** — Hệ thống Quản lý Bán hàng & Kinh doanh nội bộ
 > Người thực hiện: Nguyễn Nhật Anh - MSSV: 2280600083
