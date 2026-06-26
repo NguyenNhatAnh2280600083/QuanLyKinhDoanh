@@ -1,0 +1,46 @@
+name: Deploy QuanLyKinhDoanh to VPS
+
+on:
+  push:
+    branches:
+      - main  # Hoặc master tùy vào nhánh chính của bạn
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VPS and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /root/QuanLyKinhDoanh
+            
+            # Cập nhật mã nguồn mới nhất từ Github
+            git pull origin main
+            
+            # ========================
+            # DEPLOY BACKEND (PYTHON)
+            # ========================
+            cd backend
+            source venv/bin/activate
+            pip install -r requirements.txt
+            deactivate
+            pm2 restart qlkd-be
+            cd ..
+            
+            # ========================
+            # DEPLOY FRONTEND (REACT/VITE)
+            # ========================
+            cd frontend
+            # Ghi đè URL trỏ về API của máy chủ VPS
+            echo "VITE_API_URL=http://103.167.89.133/api" > .env
+            npm install
+            npm run build
+            pm2 restart qlkd-fe
+            
+            # Lưu lại trạng thái của PM2
+            pm2 save
