@@ -1,55 +1,53 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
-  build-frontend:
+  deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18.x
-        cache: 'npm'
-        cache-dependency-path: './frontend/package-lock.json'
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Deploy to VPS
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
 
-    - name: Build frontend
-      run: npm run build
+            echo "Move to project"
+            cd /var/www/QuanLyKinhDoanh
 
-  test-backend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
+            echo "Pull latest code"
+            git reset --hard
+            git pull origin main
 
-    steps:
-    - uses: actions/checkout@v3
+            echo "Backend update"
+            cd backend
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
-        cache: 'pip'
-        cache-dependency-path: './backend/requirements.txt'
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+            source venv/bin/activate
+            pip install -r requirements.txt
 
-    - name: Run tests with pytest
-      run: |
-        pytest
+            echo "Restart backend"
+            systemctl restart backend
+
+            echo "rontend build"
+            cd ../frontend
+            npm install
+            npm run build
+
+            echo "Deploy success"
+          EOF
